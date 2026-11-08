@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>A Degradation-Aware Two-Stage Framework for Secure VPP Bidding and Feeder-Constrained Dispatch</title>
+<style>
+@page { size: letter; margin: 17mm 14mm; }
+body { font-family: "Times New Roman", Times, serif; font-size: 10pt; line-height: 1.22; color: #111;
+  max-width: 210mm; margin: 0 auto; padding: 11mm 13mm 20mm; }
+h1.title { font-size: 13.6pt; font-weight: 700; text-align: center; margin: 0 0 6pt; }
+.authors { text-align:center; font-size: 11pt; margin: 6pt 0 2pt; }
+.affil { text-align:center; font-size: 8.8pt; font-style: italic; margin-bottom: 8pt; }
+.abstract, .idx { font-size: 9pt; text-align: justify; }
+h2 { font-size: 11pt; font-weight: 700; text-align: center; margin: 12pt 0 6pt; text-transform: uppercase; }
+h3 { font-size: 10.3pt; font-weight: 700; font-style: italic; margin: 8pt 0 4pt; }
+p { text-align: justify; margin: 0 0 5.5pt; }
+.cols { column-count: 2; column-gap: 6.5mm; }
+figure { margin: 7pt 0 9pt; break-inside: avoid; text-align: center; }
+figure img, figure svg { max-width: 100%; height: auto; }
+figcaption { font-size: 8.3pt; text-align: justify; margin-top: 3pt; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 7pt; font-size: 7.2pt; break-inside: avoid; }
+th, td { border: 1px solid #444; padding: 2pt 3pt; text-align: center; }
+th { background: #f3f3f3; }
+td.l { text-align: left; }
+caption { caption-side: top; font-size: 8.6pt; font-weight: 700; text-align: center; margin: 5pt 0 3pt; }
+.eq { text-align:center; margin: 6pt 0; font-style: italic; break-inside: avoid; }
+.eqno { float:right; font-style: normal; }
+ol.refs { font-size: 8.1pt; padding-left: 15pt; text-align: justify; }
+ol.refs li { margin-bottom: 3.2pt; }
+.note { font-size: 8.2pt; font-style: italic; }
+hr.sep { border:0; border-top: 1px solid #000; margin: 9pt 0; }
+.nom td:first-child { font-style: italic; white-space: nowrap; }
+.box { border: 1px solid #333; padding: 5pt 7pt; margin: 6pt 0; font-size: 8.5pt; text-align: justify; break-inside: avoid; }
+</style>
+</head>
+<body>
+<h1 class="title">A Degradation-Aware Two-Stage Framework for Secure VPP Bidding and Feeder-Constrained Dispatch</h1>
+<p class="authors">Amir Hassanli and Ali Reza Abbasi</p>
+<p class="affil">IEEE manuscript. Option B: provable two-stage LPs. Rows B3, P2 and Full of Table III are not evaluated. Seed 20260827. SMARD DE-LU 6–12 April 2026. Every euro is HiGHS kOptimal, LP gap 0.</p>
+
+<div class="abstract"><p><b>Abstract—</b>
+This paper reports a two-stage LP on a battery-integrated VPP, not a trained LLM–MARL–GNN stack. Stage 1 is a day-ahead energy bid; Stage 2 is a LinDistFlow P–Q correction on the IEEE 33-bus feeder. Sign convention: \(p^{\mathrm{ch}}\ge 0\) charge, \(p^{\mathrm{dis}}\ge 0\) discharge, \(p^{\mathrm{DA}}>0\) export. Negative profit is feeder-service cost (load exceeds local PV). On SMARD DE-LU, 6–12 April 2026, 42/42 programs are HiGHS kOptimal (gap 0). A six-row ablation shows that <i>CVaR does not move expected profit</i> (B1−B0 = +0.24 EUR/day). <i>Throughput aging does</i> (B2−B1 = +90 EUR/day; aging bill 169→69 EUR/day). Voltage safety is a real-time row only: B2 and P1 share \(p^{\mathrm{DA}}\) on every day, and the slack zeros \(276\pm 50\) bus-hours/day below 0.93 pu at 4.3 EUR/day (0.08% of |profit|; Wilcoxon \(p=0.016\), \(n=7\)). P-only cannot hold 0.93 pu; only P–Q holds 0.95 pu (+52 EUR on 8 April). Newton–Raphson mean \(|\Delta V|=0.17\%\), \(\varepsilon_v=0.007\) pu. A physics residual screen sees voltage tapes (stealth recall 0.90) and misses bid/price attacks (−226 / −1565 EUR). Xu daily-range cost saturates at the SoC box and does not discriminate. Rows B3, P2 and Full are empty.
+</p></div>
+<p class="idx"><b>Index Terms—</b> Virtual power plant, CVaR, battery degradation, LinDistFlow, two-stage stochastic programming, voltage constraint, residual FDIA.</p>
+<hr class="sep"/>
+
+<table class="nom">
+<caption>NOMENCLATURE</caption>
+<thead><tr><th>Symbol</th><th>Description</th></tr></thead>
+<tbody>
+<tr><th colspan="2">A. Indices and Sets</th></tr>
+<tr><td>t ∈ T</td><td>Hourly index, |T|=24, Δt = 1 h</td></tr>
+<tr><td>ω ∈ Ω</td><td>Day-ahead scenario, |Ω|=K=12, π_ω = 1/K</td></tr>
+<tr><td>n ∈ N</td><td>Bus of the IEEE 33-bus feeder, |N|=33, slack n=1</td></tr>
+<tr><td>ℓ=(i→j) ∈ L</td><td>Directed branch, |L|=32, C(j) = children of j</td></tr>
+<tr><td>b ∈ B</td><td>BESS unit, B={6,18,33} (1-based bus)</td></tr>
+<tr><td>g ∈ G</td><td>PV unit, G={7,24,31}</td></tr>
+<tr><td>m ∈ M</td><td>Xu PWL segment, |M|=4</td></tr>
+<tr><th colspan="2">B. Parameters</th></tr>
+<tr><td>S_b, V_b</td><td>Bases: 10 MVA, 12.66 kV</td></tr>
+<tr><td>r_ℓ, x_ℓ</td><td>Branch resistance and reactance (pu on S_b)</td></tr>
+<tr><td>P^{L,pk}_n, Q^{L,pk}_n</td><td>Peak bus load (MW, MVAr); Σ P^{L,pk}=3.715 MW</td></tr>
+<tr><td>ℓ_t, ℓ_{t,ω}</td><td>Realised / scenario load factor on the peak shape</td></tr>
+<tr><td>P^{PV}_{g,t}</td><td>PV injection at bus g (MW), nameplate 0.60 MW</td></tr>
+<tr><td>P^{b}_b, E^{b}_b</td><td>BESS power/energy: (0.30,0.40,0.50) MW / (0.60,0.80,1.00) MWh</td></tr>
+<tr><td>η_c, η_d</td><td>Charge / discharge efficiency, 0.95 / 0.95</td></tr>
+<tr><td>σ̲, σ̄, σ_0</td><td>SoC min/max/init: 0.10 / 0.90 / 0.50 of E^{b}</td></tr>
+<tr><td>λ^{DA}_{t,ω}, λ^{DA}_t</td><td>Scenario / realised DE-LU day-ahead price (EUR/MWh)</td></tr>
+<tr><td>λ^{+}_t, λ^{-}_t</td><td>Short / long imbalance price (EUR/MWh), (1)</td></tr>
+<tr><td>β, α</td><td>CVaR weight 0.05 and tail 0.95 (B1, B2, P1)</td></tr>
+<tr><td>c^{deg}</td><td>Throughput aging, 12 EUR/MWh of p^{ch}+p^{dis}</td></tr>
+<tr><td>w_m, κ_m</td><td>Xu widths (0.20,0.30,0.30,0.20); slopes (8,30,60,90) EUR</td></tr>
+<tr><td>v̲<sup>op</sup>, v̄<sup>op</sup></td><td>Operational |V| band used in the slack (23): 0.93 pu (main factorial) and 1.05 pu</td></tr>
+<tr><td>v̲<sup>box</sup>, v̄<sup>box</sup></td><td>Wide technical bounds on v² in (21): 0.80² … 1.15² pu². Distinct from v̲<sup>op</sup></td></tr>
+<tr><td>ρ_s</td><td>Undervoltage slack penalty, 2500 EUR/pu²</td></tr>
+<tr><td>γ^{inv}</td><td>Inverter headroom, |P|+|Q| ≤ 1.25 P^{b}_b</td></tr>
+<tr><td>p^{DA,max}</td><td>Bid box, 4 MW</td></tr>
+<tr><td>ε_v</td><td>NR linearisation margin: 0.007 pu from worst-case B2 max |ΔV|=0.0068 (Table VI); P1-only would have been 0.004</td></tr>
+<tr><th colspan="2">C. Stage-1 Decision Variables (here-and-now / wait-and-see)</th></tr>
+<tr><td>p^{DA}_t</td><td>Here-and-now export bid (MW); &gt;0 export, &lt;0 import</td></tr>
+<tr><td>p^{ch}_{t,ω}, p^{dis}_{t,ω}</td><td>Aggregate charge / discharge (MW), ≥0</td></tr>
+<tr><td>E_{t,ω}</td><td>Aggregate stored energy (MWh)</td></tr>
+<tr><td>δ^{+}_{t,ω}, δ^{-}_{t,ω}</td><td>Short / long imbalance (MW), ≥0</td></tr>
+<tr><td>E^{max}_ω, E^{min}_ω</td><td>Daily SoC peak / trough (MWh)</td></tr>
+<tr><td>u_{m,ω}</td><td>Xu segment of daily depth (pu of Σ E^{b})</td></tr>
+<tr><td>η, z_ω</td><td>Rockafellar–Uryasev CVaR auxiliaries</td></tr>
+<tr><th colspan="2">D. Stage-2 Decision Variables (realised path)</th></tr>
+<tr><td>p^{ch}_{b,t}, p^{dis}_{b,t}</td><td>Unit charge / discharge (MW), ≥0</td></tr>
+<tr><td>q^{+}_{b,t}, q^{-}_{b,t}</td><td>Reactive injection / absorption (MVAr), ≥0</td></tr>
+<tr><td>E_{b,t}</td><td>Unit stored energy (MWh)</td></tr>
+<tr><td>P_{ℓ,t}, Q_{ℓ,t}</td><td>Branch sending-end flow (MW, MVAr)</td></tr>
+<tr><td>v^{2}_{n,t}</td><td>Squared bus voltage (pu²); tables report |V|=√v² (pu)</td></tr>
+<tr><td>s_{n,t}</td><td>Undervoltage slack (pu²), ≥0, P1/P0 only</td></tr>
+<tr><td>δ^{+}_t, δ^{-}_t</td><td>Real-time short / long imbalance (MW)</td></tr>
+<tr><th colspan="2">E. Abbreviations</th></tr>
+<tr><td>B0, B1, B2, P1</td><td>Evaluated Table-III rows (HiGHS)</td></tr>
+<tr><td>B3, P2, Full</td><td>Specified, not evaluated</td></tr>
+</tbody>
+</table>
+
+<div class="cols">
+
+<h2>I. Introduction</h2>
+<p>A virtual power plant (VPP) must bid in the day-ahead market and then track that bid on a voltage-constrained feeder while paying a real cell-aging cost [1]–[7]. Four extra blocks—an LLM risk head, distributionally robust reweighting, a multi-agent policy, and a neural FDIA detector—are often stacked on that core. This manuscript does not stack them numerically. It is Option B: a provable two-stage LP with degradation in both stages, CVaR, LinDistFlow, P–Q voltage correction, residual attack tapes, and a written architecture for the rest.</p>
+<p>Table III is the ablation. B0, B1, B2 and P1 have HiGHS euros. B3, P2 and Full do not. Section IV writes an LLM tuple, DRO, rainflow/SOH and a QP layer as a protocol. Section V reports only solved programs. Section VI states which claims the week actually supports.</p>
+
+<div class="box"><b>Supported contribution (Table VIII).</b> Throughput aging in the optimiser, and a real-time P–Q LinDistFlow slack that zeros 0.93 pu violations without changing the bid. Not supported on this week: CVaR as an economic lever; Xu as the discriminating aging model; voltage-aware first-stage bidding; cyber-resilience as a headline; LLM/MARL/GNN.</div>
+
+<h2>II. Related Work</h2>
+<p>Akkas and Cam put degradation into a risk-based VPP bid without a feeder row [8]. Li et al. co-optimise VPPs with an active distribution network [9]. Xu et al. give the convex PWL depth used in Stage 1 [7]. Huang et al. treat safe MARL under partial observability without a wholesale bid [12]. Cheng et al. treat LLM dispatch [14]. Singh et al. detect VPP FDIA with an autoencoder [15]. This paper’s evaluated occupancy is bidding, aging and voltage, plus a residual (not neural) screen.</p>
+<table>
+<caption>TABLE I<br/>LITERATURE. LAST ROW = EVALUATED CORE, NOT B3/P2/FULL</caption>
+<thead><tr><th class="l">Reference</th><th>Bid</th><th>Aging</th><th>MARL</th><th>Voltage</th><th>LLM</th><th>FDIA</th></tr></thead>
+<tbody>
+<tr><td class="l">Akkas and Cam [8]</td><td>●</td><td>●</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td class="l">Li et al. [9]</td><td>●</td><td>◐</td><td>—</td><td>●</td><td>—</td><td>—</td></tr>
+<tr><td class="l">Huang et al. [12]</td><td>—</td><td>—</td><td>●</td><td>●</td><td>—</td><td>—</td></tr>
+<tr><td class="l">Cheng et al. [14]</td><td>—</td><td>—</td><td>—</td><td>◐</td><td>●</td><td>—</td></tr>
+<tr><td class="l">Singh et al. [15]</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>●</td></tr>
+<tr><td class="l"><b>This paper, Table III filled rows</b></td><td>●</td><td>●</td><td>—</td><td>●</td><td>—</td><td>◐ residual</td></tr>
+</tbody>
+</table>
+
+<h2>III. Plant and Sign Convention</h2>
+<p>IEEE 33-bus, 12.66 kV, \(S_b=10\) MVA, peak 3.715 MW + j2.300 MVAr [10]. Heterogeneous BESS at buses 6, 18, 33: 0.30/0.60, 0.40/0.80, 0.50/1.00 MW/MWh. PV 0.60 MW at 7, 24, 31. \(\eta=0.95/0.95\), SoC 10–90%, cyclic 50%. Inverter \(|P|+|Q|\le 1.25 p_i^{\mathrm{bess}}\). SMARD DE-LU 6–12 April 2026 [18], [19]. \(K=12\), \(\sigma=12\) EUR/MWh. Two-price imbalance (1). Reported \(|V|\) is pu, never \(v^2\).</p>
+<p class="eq">λ<sup>+</sup><sub>t</sub> = λ<sup>DA</sup><sub>t</sub> + 18 + 0.12|λ<sup>DA</sup><sub>t</sub>|, &nbsp; λ<sup>−</sup><sub>t</sub> = λ<sup>DA</sup><sub>t</sub> − 10 − 0.08|λ<sup>DA</sup><sub>t</sub>|. <span class="eqno">(1)</span></p>
+<figure>
+<img src="figures/Fig_feeder.png" alt="feeder"/>
+<figcaption><b>Fig. 1.</b> IEEE 33-bus. BESS 6, 18, 33; PV 7, 24, 31. FDIA voltage tapes use buses 18, 22, 33.</figcaption>
+</figure>
+
+<figure>
+<svg viewBox="0 0 720 210" xmlns="http://www.w3.org/2000/svg" role="img">
+<rect x="8" y="20" width="130" height="54" rx="6" fill="#E8F1F8" stroke="#222"/>
+<text x="73" y="42" text-anchor="middle" font-size="11" font-family="Times New Roman">Market + text</text>
+<text x="73" y="58" text-anchor="middle" font-size="9" font-family="Times New Roman">pre-gate only</text>
+<rect x="160" y="20" width="150" height="54" rx="6" fill="#F4E8D8" stroke="#222"/>
+<text x="235" y="42" text-anchor="middle" font-size="11" font-family="Times New Roman">LLM tuple (IV-A)</text>
+<text x="235" y="58" text-anchor="middle" font-size="9" font-family="Times New Roman">not fitted</text>
+<rect x="332" y="20" width="170" height="54" rx="6" fill="#D9EAD3" stroke="#222"/>
+<text x="417" y="42" text-anchor="middle" font-size="11" font-family="Times New Roman">Stage 1 MILP</text>
+<text x="417" y="58" text-anchor="middle" font-size="9" font-family="Times New Roman">CVaR + Xu + thr.</text>
+<rect x="524" y="20" width="88" height="54" rx="6" fill="#EAD1DC" stroke="#222"/>
+<text x="568" y="50" text-anchor="middle" font-size="11" font-family="Times New Roman">p^DA</text>
+<rect x="8" y="120" width="150" height="58" rx="6" fill="#FCE5CD" stroke="#222"/>
+<text x="83" y="144" text-anchor="middle" font-size="11" font-family="Times New Roman">Residual screen</text>
+<text x="83" y="160" text-anchor="middle" font-size="9" font-family="Times New Roman">evaluated, Table VII</text>
+<rect x="180" y="120" width="200" height="58" rx="6" fill="#D0E2F3" stroke="#222"/>
+<text x="280" y="144" text-anchor="middle" font-size="11" font-family="Times New Roman">Stage 2 LinDistFlow LP</text>
+<text x="280" y="160" text-anchor="middle" font-size="9" font-family="Times New Roman">P–Q, aging, ε_v</text>
+<rect x="402" y="120" width="120" height="58" rx="6" fill="#EEE" stroke="#222"/>
+<text x="462" y="144" text-anchor="middle" font-size="11" font-family="Times New Roman">MARL + QP</text>
+<text x="462" y="160" text-anchor="middle" font-size="9" font-family="Times New Roman">roadmap</text>
+<rect x="544" y="120" width="68" height="58" rx="6" fill="#E8F1F8" stroke="#222"/>
+<text x="578" y="152" text-anchor="middle" font-size="11" font-family="Times New Roman">feeder</text>
+<defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#222"/></marker></defs>
+<line x1="138" y1="47" x2="158" y2="47" stroke="#222" marker-end="url(#ar)"/>
+<line x1="310" y1="47" x2="330" y2="47" stroke="#222" marker-end="url(#ar)"/>
+<line x1="502" y1="47" x2="522" y2="47" stroke="#222" marker-end="url(#ar)"/>
+<line x1="568" y1="74" x2="83" y2="118" stroke="#222" marker-end="url(#ar)"/>
+<line x1="158" y1="149" x2="178" y2="149" stroke="#222" marker-end="url(#ar)"/>
+<line x1="380" y1="149" x2="400" y2="149" stroke="#888" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+<line x1="522" y1="149" x2="542" y2="149" stroke="#888" stroke-dasharray="4 3"/>
+<text x="360" y="14" text-anchor="middle" font-size="10" font-family="Times New Roman">Solid = evaluated. Dashed = architecture only. LLM does not enter the RT loop.</text>
+</svg>
+<figcaption><b>Fig. 2.</b> Architecture. Solid path is Table III. Dashed MARL/QP and the LLM tuple are Section IV, not Section V.</figcaption>
+</figure>
+
+<figure>
+<svg viewBox="0 0 720 70" xmlns="http://www.w3.org/2000/svg">
+<line x1="20" y1="36" x2="700" y2="36" stroke="#222"/>
+<circle cx="80" cy="36" r="4" fill="#0072B2"/>
+<circle cx="260" cy="36" r="4" fill="#0072B2"/>
+<circle cx="440" cy="36" r="4" fill="#009E73"/>
+<circle cx="640" cy="36" r="4" fill="#D55E00"/>
+<text x="80" y="18" text-anchor="middle" font-size="10" font-family="Times New Roman">T−24 h  text / scenarios</text>
+<text x="260" y="18" text-anchor="middle" font-size="10" font-family="Times New Roman">Gate  p^DA</text>
+<text x="440" y="18" text-anchor="middle" font-size="10" font-family="Times New Roman">RT  LP / residual</text>
+<text x="640" y="18" text-anchor="middle" font-size="10" font-family="Times New Roman">Settlement</text>
+<text x="440" y="58" text-anchor="middle" font-size="9" font-family="Times New Roman">LLM is not in this loop</text>
+</svg>
+<figcaption><b>Fig. 3.</b> Clock. The LLM tuple, if ever fitted, is consumed only before gate closure.</figcaption>
+</figure>
+
+<h2>IV. Model Redesign (Architecture)</h2>
+<p>This section is the proposed model. Only the LP specialisation in IV-F is solved.</p>
+
+<h3>A. LLM as a Distributional Tuple, Not a Scalar</h3>
+<p>A pre-gate text map should return four numbers, not one score,</p>
+<p class="eq">(r<sub>t</sub>, Δλ<sub>t</sub>, ρ<sub>t</sub>, h<sub>t</sub>) = f<sub>LLM</sub>(news<sub>t</sub>, policy<sub>t</sub>, report<sub>t</sub>), <span class="eqno">(2)</span></p>
+<p>with r<sub>t</sub>∈[0,1] a risk index, Δλ<sub>t</sub> a directed price shift, ρ<sub>t</sub> an extra dispersion, and h<sub>t</sub> a persistence horizon. Scenarios are then</p>
+<p class="eq">λ<sub>t,ω</sub><sup>adj</sup> = λ<sub>t,ω</sub> + r<sub>t</sub> Δλ<sub>t</sub> + √(1+ρ<sub>t</sub>) ε<sub>t,ω</sub>, &nbsp; t′≤t+h<sub>t</sub>. <span class="eqno">(3)</span></p>
+<p>The head is to be calibrated (Platt, isotonic, conformal) against BERT/FinBERT/XGBoost on Brier, ECE, AUROC, F1 and tail error, then trained decision-focused against trading regret. <b>Not fitted here.</b></p>
+
+<h3>B. DRO Instead of Ad-Hoc Reweighting</h3>
+<p>Replacing \(\tilde\pi_\omega\propto\pi_\omega(1+\gamma r_t)\) by an ambiguity set avoids a hand-tuned tilt:</p>
+<p class="eq">max<sub>x</sub> min<sub>ℙ∈𝒰(r)</sub> E<sub>ℙ</sub>[Π(x,ξ)] − β CVaR<sub>α</sub>(−Π), <span class="eqno">(4)</span></p>
+<p class="eq">𝒰(r) = { ℙ : D<sub>f</sub>(ℙ,ℙ<sub>0</sub>) ≤ ε<sub>0</sub> + ε<sub>1</sub> r }. <span class="eqno">(5)</span></p>
+<p>Wasserstein \(D_f\) is the intended case. <b>The evaluated Stage 1 is mean–CVaR with uniform \(\pi_\omega=1/K\), r<sub>t</sub>≡0.</b></p>
+
+<h3>C. Throughput, Xu, Rainflow, SOH</h3>
+<p>Three aging layers: linear throughput (baseline, evaluated), Xu PWL on daily SoC range (evaluated in the DA objective), rainflow on the realised SoC (post-hoc in Section V). A dynamic SOH,</p>
+<p class="eq">SOH<sub>t+1</sub> = SOH<sub>t</sub> − a<sub>1</sub> DoD<sub>t</sub><sup>a<sub>2</sub></sup> − a<sub>3</sub> |P<sub>t</sub>|, &nbsp; P<sub>i,t</sub><sup>max</sup> = SOH<sub>i,t</sub> P<sub>i</sub><sup>rated</sup>, <span class="eqno">(6)</span></p>
+<p>is written and not integrated in the LP. A shadow price \(c_{i,t}^{\mathrm{deg}}=\partial C_i^{\mathrm{deg}}/\partial P_{i,t}\) would mark hours where aging kills arbitrage; Fig. 14 is the evaluated proxy (service cost versus equivalent full cycles from throughput).</p>
+
+<h3>D. QP Safety Layer and \(\varepsilon_v\)</h3>
+<p>If a policy ever emits \(u^{\mathrm{RL}}\), the projection is</p>
+<p class="eq">u<sup>safe</sup> = arg min<sub>u</sub> ‖u − u<sup>RL</sup>‖<sub>W</sub><sup>2</sup> <span class="eqno">(7)</span></p>
+<p>s.t. \(v_{\min}+\varepsilon_v \le v_0 + J_v u \le v_{\max}-\varepsilon_v\), \(|S_\ell|\le S_\ell^{\max}\), SoC boxes. \(\varepsilon_v=0.007\) pu is taken from the Newton–Raphson max error on P1 (Table VI), not from a claim that projection makes violations arbitrarily small. The evaluated Stage 2 is the LP itself, which is already the projection onto LinDistFlow. MARL is not trained. Ramp \(|P_{t}-P_{t-1}|\le \overline r\) was added to the LP; 0.05–0.20 MW/h is non-binding on P1.</p>
+
+<h3>E. FDIA</h3>
+<p>Tapes: \(x_\tau^{\mathrm{att}}=x_\tau+a_\tau^{(k)}\), stealth \(\|H a_\tau\|_2\le\epsilon\). Detectors: residual versus the LinDistFlow twin, and z-score. Autoencoder, Isolation Forest, LSTM and an attacker–defender game are named and not trained. Voltage-channel results are Table VII. Bid/price attacks are economic, not voltage-detectable.</p>
+
+<h3>F. Evaluated LPs — Complete Constraints (src/vpp_two_stage.py)</h3>
+<p>Let \(E^{\Sigma}=\sum_b E^b_b=2.40\) MWh and \(P^{\Sigma}=\sum_b P^b_b=1.20\) MW. Stage 1 is an aggregate battery. Imbalance prices follow (1) with clips \(\lambda^{+}\ge\lambda^{\mathrm{DA}}+5\), \(\lambda^{-}\le\lambda^{\mathrm{DA}}-3\).</p>
+<p><i>Stage-1 objective</i> (B1, B2, P1; B0 sets \(\beta=0\) and drops aging rows):</p>
+<p class="eq">max &nbsp; (1−β) Σ<sub>ω</sub> π<sub>ω</sub> Π<sub>ω</sub> + β [ η − (1−α)<sup>−1</sup> Σ<sub>ω</sub> π<sub>ω</sub> z<sub>ω</sub> ] <span class="eqno">(8)</span></p>
+<p class="eq">Π<sub>ω</sub> = Σ<sub>t</sub> [ λ<sup>DA</sup><sub>t,ω</sub> p<sup>DA</sup><sub>t</sub> + λ<sup>−</sup><sub>t,ω</sub> δ<sup>−</sup><sub>t,ω</sub> − λ<sup>+</sup><sub>t,ω</sub> δ<sup>+</sup><sub>t,ω</sub> − c<sup>deg</sup>(p<sup>ch</sup><sub>t,ω</sub>+p<sup>dis</sup><sub>t,ω</sub>) ] − Σ<sub>m</sub> κ<sub>m</sub> u<sub>m,ω</sub>. <span class="eqno">(9)</span></p>
+<p class="eq">z<sub>ω</sub> ≥ η − Π<sub>ω</sub>, &nbsp; z<sub>ω</sub> ≥ 0, &nbsp; −4 ≤ p<sup>DA</sup><sub>t</sub> ≤ 4. <span class="eqno">(10)</span></p>
+<p class="eq">p<sup>DA</sup><sub>t</sub> + p<sup>ch</sup><sub>t,ω</sub> + δ<sup>−</sup><sub>t,ω</sub> − p<sup>dis</sup><sub>t,ω</sub> − δ<sup>+</sup><sub>t,ω</sub> = P<sup>PV</sup><sub>t,ω</sub> − 3.715 ℓ<sub>t,ω</sub>, <span class="eqno">(11)</span></p>
+<p class="eq">E<sub>t,ω</sub> = E<sub>t−1,ω</sub> + η<sub>c</sub> p<sup>ch</sup><sub>t,ω</sub> − p<sup>dis</sup><sub>t,ω</sub>/η<sub>d</sub>, &nbsp; E<sub>0,ω</sub>=E<sub>24,ω</sub>=0.5 E<sup>Σ</sup>, <span class="eqno">(12)</span></p>
+<p class="eq">0.10 E<sup>Σ</sup> ≤ E<sub>t,ω</sub> ≤ 0.90 E<sup>Σ</sup>, &nbsp; 0 ≤ p<sup>ch</sup><sub>t,ω</sub>, p<sup>dis</sup><sub>t,ω</sub> ≤ P<sup>Σ</sup>, &nbsp; 0 ≤ δ<sup>±</sup><sub>t,ω</sub> ≤ 8. <span class="eqno">(13)</span></p>
+<p class="eq">E<sup>min</sup><sub>ω</sub> ≤ E<sub>t,ω</sub> ≤ E<sup>max</sup><sub>ω</sub>, &nbsp; Σ<sub>m</sub> u<sub>m,ω</sub> = (E<sup>max</sup><sub>ω</sub>−E<sup>min</sup><sub>ω</sub>)/E<sup>Σ</sup>, &nbsp; 0 ≤ u<sub>m,ω</sub> ≤ w<sub>m</sub>. <span class="eqno">(14)</span></p>
+<p><i>Stage-2 objective</i> (P1; drop ρ<sub>s</sub> in B0/B1/B2):</p>
+<p class="eq">min Σ<sub>t</sub> [ λ<sup>+</sup><sub>t</sub> δ<sup>+</sup><sub>t</sub> − λ<sup>−</sup><sub>t</sub> δ<sup>−</sup><sub>t</sub> + c<sup>deg</sup> Σ<sub>b</sub> (p<sup>ch</sup><sub>b,t</sub>+p<sup>dis</sup><sub>b,t</sub>) + ρ<sub>s</sub> Σ<sub>n</sub> s<sub>n,t</sub> ]. <span class="eqno">(15)</span></p>
+<p class="eq">E<sub>b,t</sub> = E<sub>b,t−1</sub> + η<sub>c</sub> p<sup>ch</sup><sub>b,t</sub> − p<sup>dis</sup><sub>b,t</sub>/η<sub>d</sub>, &nbsp; E<sub>b,0</sub>=E<sub>b,24</sub>=0.5 E<sup>b</sup><sub>b</sub>, <span class="eqno">(16)</span></p>
+<p class="eq">0.10 E<sup>b</sup><sub>b</sub> ≤ E<sub>b,t</sub> ≤ 0.90 E<sup>b</sup><sub>b</sub>, &nbsp; 0 ≤ p<sup>ch</sup><sub>b,t</sub>, p<sup>dis</sup><sub>b,t</sub>, q<sup>±</sup><sub>b,t</sub> ≤ P<sup>b</sup><sub>b</sub>, <span class="eqno">(17)</span></p>
+<p class="eq">p<sup>ch</sup><sub>b,t</sub>+p<sup>dis</sup><sub>b,t</sub>+q<sup>+</sup><sub>b,t</sub>+q<sup>−</sup><sub>b,t</sub> ≤ 1.25 P<sup>b</sup><sub>b</sub>. <span class="eqno">(18)</span></p>
+<p class="eq">P<sub>ℓ,t</sub> − Σ<sub>k∈C(j)</sub> P<sub>k,t</sub> = P<sup>L,pk</sup><sub>j</sub> ℓ<sub>t</sub> − P<sup>PV</sup><sub>j,t</sub> − (p<sup>dis</sup>−p<sup>ch</sup>)|_{b\to j}, <span class="eqno">(19)</span></p>
+<p class="eq">Q<sub>ℓ,t</sub> − Σ<sub>k∈C(j)</sub> Q<sub>k,t</sub> = Q<sup>L,pk</sup><sub>j</sub> ℓ<sub>t</sub> − (q<sup>+</sup>−q<sup>−</sup>)|_{b\to j}, <span class="eqno">(20)</span></p>
+<p class="eq">v<sup>2</sup><sub>1,t</sub>=1, &nbsp; v<sup>2</sup><sub>j,t</sub> = v<sup>2</sup><sub>i,t</sub> − 2(r<sub>ℓ</sub> P<sub>ℓ,t</sub>+x<sub>ℓ</sub> Q<sub>ℓ,t</sub>)/S<sub>b</sub>, &nbsp; (v̲<sup>box</sup>)<sup>2</sup> ≤ v<sup>2</sup><sub>n,t</sub> ≤ (v̄<sup>box</sup>)<sup>2</sup>, <span class="eqno">(21)</span></p>
+<p class="eq">−P<sub>1→2,t</sub> + δ<sup>+</sup><sub>t</sub> − δ<sup>−</sup><sub>t</sub> = p<sup>DA</sup><sub>t</sub>, &nbsp; 0 ≤ δ<sup>±</sup><sub>t</sub> ≤ 8. <span class="eqno">(22)</span></p>
+<p class="eq">v<sup>2</sup><sub>n,t</sub> + s<sub>n,t</sub> ≥ (v̲<sup>op</sup>)<sup>2</sup>, &nbsp; s<sub>n,t</sub> ≥ 0. &nbsp; (P1, P0) <span class="eqno">(23)</span></p>
+<p>The box in (21) is a wide numerical bound (0.80–1.15 pu) so LinDistFlow stays defined. The operational floor is (23) at v̲<sup>op</sup>=0.93 pu (0.95 pu in Table V). Reported profit is (15) without ρ<sub>s</sub>. For P1 and P0 the optimum has s=0, so reported profit equals the complete Stage-2 objective. For rows that still violate (P-only in Table V) the optimiser saw 2500 s but the table omits it; those rows are a theoretical ablation, not an operating policy. B0/B1 omit c<sup>deg</sup> in the optimiser and still report 12×throughput. Solver: scipy linprog method="highs" [20], gap 0.</p>
+
+<h2>V. Evaluated Results</h2>
+<p>Table III is the required ablation. Profit is 7-day mean feeder-service profit (EUR/day). “CVaR” in that table is the worst day in the week (n=7; a 5% tail on seven points is the minimum). Violations and aging are week means. B3, P2, Full are empty by design.</p>
+<table>
+<caption>TABLE III<br/>ABLATION. FILLED CELLS = HIGHS kOptimal, n=7 DAYS. EMPTY = NOT EVALUATED. B1 ≡ CVaR ONLY (CODE B1b). B2 ≡ CVaR+AGING. P1 ≡ CVaR+AGING+VOLTAGE</caption>
+<thead>
+<tr><th>Model</th><th>LLM</th><th>CVaR</th><th>Aging</th><th>V safety</th><th>FDIA def.</th><th>Profit</th><th>Worst day</th><th>Viol/d</th><th>Aging</th></tr>
+</thead>
+<tbody>
+<tr><td>B0</td><td>✗</td><td>✗</td><td>✗</td><td>✗</td><td>✗</td><td>−5195.0</td><td>−8828.1</td><td>241</td><td>170</td></tr>
+<tr><td>B1</td><td>✗</td><td>✓</td><td>✗</td><td>✗</td><td>✗</td><td>−5194.8</td><td>−8829.0</td><td>242</td><td>169</td></tr>
+<tr><td>B2</td><td>✗</td><td>✓</td><td>✓</td><td>✗</td><td>✗</td><td>−5104.7</td><td>−8816.2</td><td>276</td><td>69</td></tr>
+<tr><td>B3</td><td>✓</td><td>✓</td><td>✓</td><td>✗</td><td>✗</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>P1</td><td>✗</td><td>✓</td><td>✓</td><td>✓</td><td>✗</td><td>−5109.0</td><td>−8826.6</td><td>0</td><td>67</td></tr>
+<tr><td>P2</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✗</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Full</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+</tbody>
+</table>
+<p>Reading the filled rows: B0→B1 (CVaR only) does not move mean profit. B1→B2 (aging) improves mean profit by 90 EUR/day and cuts the aging bill 169→69. B2→P1 (voltage) costs 4.3 EUR/day (−5109.0 versus −5104.7; Wilcoxon p=0.016, n=7). The integer display −5105/−5109 would round that gap to 4 EUR; 4.3 is the unrounded mean. Extra cells not in Table III: B1a (aging, no CVaR) matches B2; P0 (voltage, no aging) zeros violations at −5188.5 EUR/day. 42/42 week LPs kOptimal, gap 0, 0.04–0.06 s. Infeasibility count: 0.</p>
+<figure>
+<img src="figures/Fig_profit.png" alt="d8 profit"/>
+<figcaption><b>Fig. 4.</b> Same four models as Table III: 7-day mean profit ± sample std (n=7). B1 is code B1b (CVaR only). B1a and P0 are extra coded cells, not in Table III. 8 April (a dearer day, about −6100 EUR) is Table IV, not this figure.</figcaption>
+</figure>
+<figure>
+<img src="figures/Fig_week_viol.png" alt="week viol"/>
+<figcaption><b>Fig. 5.</b> Daily bus-hour violations below 0.93 pu. Voltage-on rows are identically zero.</figcaption>
+</figure>
+<figure>
+<img src="figures/Fig_pareto.png" alt="pareto"/>
+<figcaption><b>Fig. 6.</b> Service cost versus aging (week). Point size = violations. P1 is the low-violation front.</figcaption>
+</figure>
+
+<h3>A. Illustrative Day and Inverter Ablation</h3>
+<p>Table IV is 8 April (one day). Aging that day is 92 EUR (B2) versus the week mean 69 EUR because 8 April is a high-price-spread day: more charge/discharge cycles, hence more throughput. The causal chain is price volatility → cycling → aging, not a data inconsistency. Table V is P-only / Q-only / P–Q on the P1 bid. Only P–Q holds 0.95 pu.</p>
+<table>
+<caption>TABLE IV<br/>8 APRIL 2026. Π = DA REV. + IMB. − AGING. |V| IN pu</caption>
+<thead><tr><th>M</th><th>DA rev.</th><th>Imb.</th><th>Aging</th><th>Profit</th><th>|V|<sub>min</sub></th><th>Viol</th></tr></thead>
+<tbody>
+<tr><td>B0</td><td>−6067</td><td>+61</td><td>172</td><td>−6178</td><td>0.873</td><td>243</td></tr>
+<tr><td>B1</td><td>−6080</td><td>+73</td><td>169</td><td>−6176</td><td>0.873</td><td>245</td></tr>
+<tr><td>B2</td><td>−6083</td><td>+75</td><td>92</td><td>−6101</td><td>0.873</td><td>281</td></tr>
+<tr><td>P1</td><td>−6083</td><td>+63</td><td>89</td><td>−6109</td><td>0.930</td><td>0</td></tr>
+</tbody>
+</table>
+<table>
+<caption>TABLE V<br/>INVERTER ABLATION ON THE P1 BID, 8 APRIL</caption>
+<thead><tr><th>Floor</th><th>P</th><th>Q</th><th>Aging</th><th>|V|<sub>min</sub></th><th>Viol</th><th>Profit</th></tr></thead>
+<tbody>
+<tr><td>0.93</td><td>✓</td><td>✗</td><td>73</td><td>0.921</td><td>61</td><td>−6215</td></tr>
+<tr><td>0.93</td><td>✗</td><td>✓</td><td>0</td><td>0.930</td><td>0</td><td>−6638</td></tr>
+<tr><td>0.93</td><td>✓</td><td>✓</td><td>89</td><td>0.930</td><td>0</td><td>−6109</td></tr>
+<tr><td>0.95</td><td>✓</td><td>✗</td><td>53</td><td>0.916</td><td>330</td><td>−6258</td></tr>
+<tr><td>0.95</td><td>✗</td><td>✓</td><td>0</td><td>0.942</td><td>63</td><td>−6638</td></tr>
+<tr><td>0.95</td><td>✓</td><td>✓</td><td>77</td><td>0.950</td><td>0</td><td>−6161</td></tr>
+</tbody>
+</table>
+<p>Q-only profit −6638 EUR is worse than unconstrained B0 (−6178) because charge/discharge are frozen (aging = 0): the battery does no arbitrage and the frozen bid is tracked only with imbalance. That row is a theoretical ablation of Q, not a realistic operating mode. Reported profit omits ρ<sub>s</sub>; P-only at 0.95 pu (330 remaining violations) therefore looks cheaper in the table than it was to the optimiser, which still paid 2500 s.</p>
+<figure>
+<img src="figures/Fig_heatmap.png" alt="hm"/>
+<figcaption><b>Fig. 7.</b> |V| heatmap. Left B2, right P1.</figcaption>
+</figure>
+<figure>
+<img src="figures/Fig_busvolt.png" alt="bus"/>
+<figcaption><b>Fig. 8.</b> All-bus |V| at the B2 worst hour.</figcaption>
+</figure>
+<figure>
+<img src="figures/Fig_pq.png" alt="pq"/>
+<figcaption><b>Fig. 9.</b> 0.93 pu floor: P-only misses it.</figcaption>
+</figure>
+
+<h3>B. Newton–Raphson versus LinDistFlow</h3>
+<table>
+<caption>TABLE VI<br/>SAME INJECTIONS, 8 APRIL. 24/24 NR HOURS CONVERGED. NOT pandapower</caption>
+<thead><tr><th>M</th><th>LD |V|<sub>min</sub></th><th>NR |V|<sub>min</sub></th><th>NR mean |ΔV|</th><th>NR max |ΔV|</th></tr></thead>
+<tbody>
+<tr><td>B2</td><td>0.873</td><td>0.867</td><td>0.0029</td><td>0.0068</td></tr>
+<tr><td>P1</td><td>0.930</td><td>0.926</td><td>0.0017</td><td>0.0038</td></tr>
+</tbody>
+</table>
+<p>P1 max NR error is 0.0038 pu; B2, sitting lower, has max 0.0068 pu. The QP margin ε<sub>v</sub> in (7) is taken from the worst observed error, 0.007 pu, not from the P1-only 0.004 pu. Using only the corrected-state error would under-cover an uncorrected trajectory.</p>
+
+<h3>C. Residual FDIA (Independent of Table III)</h3>
+<p>This is not the Full row. The screen is off-line on P1 voltages. Autoencoders are not trained.</p>
+<table>
+<caption>TABLE VII<br/>PHYSICS RESIDUAL / z-SCORE, n=120. NOT AN AUTOENCODER</caption>
+<thead><tr><th class="l">Tape</th><th>Prec.</th><th>Rec.</th><th>F1</th><th>ΔΠ if missed</th></tr></thead>
+<tbody>
+<tr><td class="l">V bias +0.05 pu</td><td>1.00</td><td>1.00</td><td>1.00</td><td>—</td></tr>
+<tr><td class="l">V ramp</td><td>1.00</td><td>1.00</td><td>1.00</td><td>—</td></tr>
+<tr><td class="l">V stealth +0.008 pu</td><td>1.00</td><td>0.90</td><td>0.95</td><td>—</td></tr>
+<tr><td class="l">V coordinated</td><td>1.00</td><td>1.00</td><td>1.00</td><td>—</td></tr>
+<tr><td class="l">Bid +0.40 MW</td><td>—</td><td>—</td><td>—</td><td>−226</td></tr>
+<tr><td class="l">Price +25 EUR/MWh</td><td>—</td><td>—</td><td>—</td><td>−1565</td></tr>
+</tbody>
+</table>
+
+<h3>D. Throughput versus Xu</h3>
+<p>Xu daily-range cost is 85.8 EUR for every model on 8 April because all units hit the 10–90% box. Throughput aging discriminates: B0 2.98 EFC versus P1 1.54 EFC of the 2.4 MWh fleet. Fig. 10. Ramps 0.05–0.20 MW/h do not bind on P1.</p>
+<figure>
+<img src="figures/Fig_rainflow.png" alt="rf"/>
+<figcaption><b>Fig. 10.</b> Throughput aging versus Xu. Xu saturates; throughput does not.</figcaption>
+</figure>
+<figure>
+<img src="figures/Fig_sensitivity.png" alt="sens"/>
+<figcaption><b>Fig. 11.</b> P1 tornado, 8 April. PV nameplate dominates β.</figcaption>
+</figure>
+<p>The claim that CVaR is economically null is for the operating weight β=0.05 (week B1−B0 = +0.24 EUR/day). A day-8 sweep β ∈ {0, 0.05, 0.15, 0.30, 0.50} moves P1 profit from −6105 to −6182 EUR and p<sup>DA</sup> from −63.4 to −67.8 MWh. CVaR can bite if β is large; it does not bite at the β of Table III.</p>
+
+<h2>VI. Discussion: Claims versus Evidence</h2>
+<p>Table VIII is the audit of the Option-B claims against the HiGHS week. Two results survive. (i) Throughput aging in the optimiser, not CVaR: B1−B0 is +0.24 EUR/day; B2−B1 is +90 EUR/day (1.7% of |profit|). Xu daily-range cost is 85.8 EUR for every model on 8 April because SoC hits the 10–90% box, so Xu does not discriminate. (ii) Real-time P–Q voltage slack: B2 and P1 share \(p^{\mathrm{DA}}\) on all seven days, so voltage does not enter the bid; it zeros \(276\pm 50\) bus-hours/day at 4.3 EUR/day (0.08% of |profit|; Wilcoxon \(p=0.016\)). P-only cannot hold 0.93 pu; only P–Q holds 0.95 pu. What does not survive: CVaR as an economic innovation; “connect bidding to control” as a first-stage effect; Xu as the aging mechanism that moves euros; cyber-resilience as a headline (bid/price attacks are invisible to the voltage residual; the screen is an upper bound against the same twin). B3/P2/Full remain empty. Day-to-day std of profit is 2485 EUR, two orders above the voltage premium.</p>
+<table>
+<caption>TABLE VIII<br/>CLAIM AUDIT. Δ = 7-DAY MEAN. BID IDENTITY: B2 AND P1 SHARE p<sup>DA</sup> EVERY DAY</caption>
+<thead><tr><th class="l">Claim</th><th>Contrast</th><th>Δ profit</th><th>Δ viol.</th><th>Supported?</th></tr></thead>
+<tbody>
+<tr><td class="l">CVaR changes the bid</td><td>B1 − B0</td><td>+0.24 EUR/d</td><td>+1</td><td>No</td></tr>
+<tr><td class="l">Aging in the optimiser</td><td>B2 − B1</td><td>+90 EUR/d</td><td>+34</td><td>Yes (throughput, not Xu)</td></tr>
+<tr><td class="l">Voltage-aware first stage</td><td>P1 vs B2 bid</td><td>identical p<sup>DA</sup></td><td>—</td><td>No</td></tr>
+<tr><td class="l">RT voltage slack</td><td>P1 − B2</td><td>−4.3 EUR/d</td><td>−276</td><td>Yes (technical)</td></tr>
+<tr><td class="l">P-only reaches 0.93/0.95</td><td>Table V</td><td>—</td><td>61 / 330</td><td>No; need P–Q</td></tr>
+<tr><td class="l">LinDistFlow ≈ NR</td><td>Table VI</td><td>—</td><td>|ΔV| 0.17%</td><td>Yes with ε_v=0.007 (worst-case B2)</td></tr>
+<tr><td class="l">FDIA-resilient VPP</td><td>Table VII</td><td>bid −226 EUR</td><td>—</td><td>Voltage residual only</td></tr>
+<tr><td class="l">LLM / MARL / GNN</td><td>B3, P2, Full</td><td>—</td><td>—</td><td>Not evaluated</td></tr>
+</tbody>
+</table>
+<p>A 7-day April week is not 30 days and not two seasons. NR is not OpenDSS. Filling B3/P2/Full requires a calibrated LLM, a DRO solver, trained MAPPO+QP, and FDIA in the loop—the protocol of Section IV, not a result.</p>
+
+<h2>VII. Conclusion</h2>
+<p>A degradation-aware two-stage LP on IEEE 33-bus / SMARD shows that aging belongs in both objectives and that voltage safety is a real-time P–Q job. Table III records that with proven HiGHS euros and leaves B3, P2 and Full blank.</p>
+
+<h2>Acknowledgment</h2>
+<p>SMARD [18] via Energy-Charts [19], CC BY 4.0. HiGHS [20]. Xu [7]. Rockafellar–Uryasev [4]. Baran–Wu [10].</p>
+
+<h2>References</h2>
+<ol class="refs">
+<li>D. Pudjianto, C. Ramsay, and G. Strbac, “Virtual power plant and system integration of distributed energy resources,” <i>IET Renew. Power Gener.</i>, vol. 1, no. 1, pp. 10–16, Mar. 2007.</li>
+<li>J. M. Morales, A. J. Conejo, and J. Pérez-Ruiz, “Short-term trading for a wind power producer,” <i>IEEE Trans. Power Syst.</i>, vol. 25, no. 1, pp. 554–564, Feb. 2010.</li>
+<li>A. J. Conejo, M. Carrión, and J. M. Morales, <i>Decision Making Under Uncertainty in Electricity Markets</i>. New York, NY, USA: Springer, 2010.</li>
+<li>R. T. Rockafellar and S. Uryasev, “Optimization of conditional value-at-risk,” <i>J. Risk</i>, vol. 2, no. 3, pp. 21–41, 2000.</li>
+<li>M. Vahedipour-Dahraie, H. Rashidizadeh-Kermani, M. Shafie-Khah, and J. P. S. Catalão, “Risk-averse optimal energy and reserve scheduling for virtual power plants incorporating demand response programs,” <i>IEEE Trans. Smart Grid</i>, vol. 12, no. 2, pp. 1405–1415, Mar. 2021.</li>
+<li>G. He, Q. Chen, C. Kang, P. Pinson, and Q. Xia, “Optimal bidding strategy of battery storage in power markets considering performance-based regulation and battery cycle life,” <i>IEEE Trans. Smart Grid</i>, vol. 7, no. 5, pp. 2359–2367, Sep. 2016.</li>
+<li>B. Xu, J. Zhao, T. Zheng, E. Litvinov, and D. S. Kirschen, “Factoring the cycle aging cost of batteries participating in electricity markets,” <i>IEEE Trans. Power Syst.</i>, vol. 33, no. 2, pp. 2248–2257, Mar. 2018.</li>
+<li>O. P. Akkas and E. Cam, “Risk-based optimal bidding and operational scheduling of a virtual power plant considering battery degradation cost and emission,” <i>Adv. Elect. Comput. Eng.</i>, vol. 23, no. 2, pp. 19–28, 2023.</li>
+<li>Q. Li, F. Dong, G. Zhou, C. Mu, Z. Wang, J. Liu, P. Yan, and D. Yu, “Co-optimization of virtual power plants and distribution grids: Emphasizing flexible resource aggregation and battery capacity degradation,” <i>Appl. Energy</i>, vol. 377, Art. no. 124519, Jan. 2025.</li>
+<li>M. E. Baran and F. F. Wu, “Network reconfiguration in distribution systems for loss reduction and load balancing,” <i>IEEE Trans. Power Del.</i>, vol. 4, no. 2, pp. 1401–1407, Apr. 1989.</li>
+<li>M. Farivar and S. H. Low, “Branch flow model: Relaxations and convexification—Part I,” <i>IEEE Trans. Power Syst.</i>, vol. 28, no. 3, pp. 2554–2564, Aug. 2013.</li>
+<li>C. Huang, J. Fan, W. Wang, and H. Wang, “Safe decentralized operation of EV virtual power plant with limited network visibility via multi-agent reinforcement learning,” arXiv:2604.03278, Mar. 2026.</li>
+<li>X. Li, F. Luo, and C. Li, “Multi-agent deep reinforcement learning-based autonomous decision-making framework for community virtual power plants,” <i>Appl. Energy</i>, vol. 360, Art. no. 122813, Apr. 2024.</li>
+<li>Y. Cheng, H. Zhao, X. Zhou, J. Zhao, Y. Cao, and C. Yang, “GAIA — A large language model for advanced power dispatch,” arXiv:2408.03847, Aug. 2024.</li>
+<li>K. N. Singh, A. K. Goswami, N. B. D. Chudhury, H. A. Shuaibu, and T. S. Ustun, “Enhancing cybersecurity in virtual power plants by detecting network based cyber attacks using an unsupervised autoencoder approach,” <i>Sci. Rep.</i>, vol. 15, Art. no. 32374, 2025.</li>
+<li>S. Wu, J. Gong, S. Xiao, J. Yang, and X. Su, “A novel FDIA model for virtual power plant cyber–physical systems based on network topology and DG outputs,” <i>Energies</i>, vol. 18, no. 7, Art. no. 1597, 2025.</li>
+<li>S. Mazaheri Khamaneh, T. Wu, W. Sun, and C. Chen, “Real-time defense against coordinated cyber-physical attacks: A robust constrained reinforcement learning approach,” arXiv:2509.10999, Sep. 2025.</li>
+<li>Bundesnetzagentur, “SMARD – Strommarktdaten.” [Online]. Available: https://www.smard.de</li>
+<li>B. Burger, “Energy-Charts,” Fraunhofer ISE. [Online]. Available: https://www.energy-charts.info</li>
+<li>Q. Huangfu and J. A. J. Hall, “Parallelizing the dual revised simplex method,” <i>Math. Program. Comput.</i>, vol. 10, pp. 119–142, 2018.</li>
+<li>D. Wang, D. Peng, and D. Huang, “Application and prospects of large AI models in virtual power plants,” <i>Electr. Power Syst. Res.</i>, vol. 241, Art. no. 111403, Apr. 2025.</li>
+</ol>
+<p class="note">Table III empty cells are not missing data; they are not runs. Archive: results/week_results.csv (B1 = B1b), pq_ablation.csv, ac_triple.csv, fdia_suite.json, rainflow.csv.</p>
+</div>
+</body>
+</html>
+111403, Apr. 2025.</li>
+</ol>
+<p class="note">Table III empty cells are not missing data; they are not runs. Archive: results/week_results.csv (B1 = B1b), pq_ablation.csv, ac_triple.csv, fdia_suite.json, rainflow.csv.</p>
+</div>
+</body>
+</html>

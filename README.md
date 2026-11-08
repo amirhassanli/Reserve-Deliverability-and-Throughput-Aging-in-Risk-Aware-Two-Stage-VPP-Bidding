@@ -20,10 +20,12 @@ VPP_Article6_Project/
 │   ├── study_b/       # SMARD week raw (6-12 Apr 2026)
 │   ├── gate10/        # processed + calibration + reduced scenarios
 │   └── market/        # summer 2026 + OOS Aug + Sept manifests (real data)
+├── figures/           # standalone figure files (PNG) used in the manuscript
 ├── results/
 │   ├── study_b/       # week ablation, AC, FDIA, claim_audit + ext/ (E1-E6) + v937/ (0.937 pu rerun, overlap, reBAP-gap)
+│   │   └── solutions/ # archived LP solutions (.npz, per model per day: dispatch, SoC, voltage, overlap inputs)
 │   └── gate10/        # reserve-price sweep, risk-neutral P1, reBAP summary
-├── reports/           # PHASE11/12 reports, RESPONSE_TO_REVIEWERS, changelog
+├── reports/           # PHASE11-15 reports, RESPONSE_TO_REVIEWERS, changelog
 └── scripts/           # reproducibility scripts for every number in the paper
 ```
 
