@@ -1,0 +1,32 @@
+{
+  "rebap": {
+    "intervals": 2784,
+    "mean_eur_mwh": 148.65,
+    "min_eur_mwh": -7208.55,
+    "max_eur_mwh": 4993.15,
+    "share_abs_ge_100_pct": 66.3
+  },
+  "da": {
+    "mean_eur_mwh": 144.82
+  },
+  "fcr": {
+    "column": "germany_settlement_capacity_price_eur_per_mw",
+    "products": 180,
+    "mean_eur_per_mw": 90.1,
+    "min_eur_per_mw": 9.03,
+    "max_eur_per_mw": 210.42,
+    "daily_mean_min": 59.7,
+    "daily_mean_max": 123.88,
+    "daily_sum_mean": 540.61,
+    "daily_sum_min": 358.21,
+    "daily_sum_max": 743.28
+  },
+  "mfrr": {
+    "column": "germany_marginal_capacity_price_eur_per_mw_h",
+    "mean_eur_per_mw_h": 13.01
+  },
+  "not_archived": [
+    "German aFRR capacity clearing for September 2026 (no result file in the supplied export)",
+    "Anonymised aFRR energy bid lists used for the 2249.80 EUR/MWh monthly mean"
+  ]
+}

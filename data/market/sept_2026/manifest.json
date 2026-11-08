@@ -1,0 +1,40 @@
+{
+  "period_local": {
+    "start_inclusive": "2026-09-01T00:00:00+02:00",
+    "end_exclusive": "2026-10-01T00:00:00+02:00"
+  },
+  "retrieved_utc": "2026-11-03T15:41:59.838910+00:00",
+  "market_panel": {
+    "file": "market_panel_15min.csv",
+    "rows": 2880,
+    "expected_15_minute_rows_for_september": 2880,
+    "sources": [
+      "Energy-Charts price API, DE-LU day-ahead price",
+      "Energy-Charts public_power API, Germany load/solar/wind",
+      "reBAP Histogramm [2026-10-12 12-35-42].csv"
+    ]
+  },
+  "fcr_capacity": {
+    "file": "fcr_capacity_clearing_4h.csv",
+    "rows": 180,
+    "source": "RESULT_OVERVIEW_CAPACITY_MARKET_FCR_2026-09-01_2026-09-30.xlsx",
+    "unit": "EUR/MW as published in the German settlement column"
+  },
+  "mfrr_capacity": {
+    "file": "mfrr_capacity_clearing_4h.csv",
+    "rows": 360,
+    "source": "RESULT_OVERVIEW_CAPACITY_MARKET_mFRR_2026-09-01_2026-09-30.xlsx",
+    "unit": "EUR/MW/h as published"
+  },
+  "unavailable_inputs": [
+    "No German aFRR capacity-market clearing result file was present in the supplied directory.",
+    "The supplied reBAP export has N.A. for 30 September; those values are kept blank.",
+    "No June-August 2026 reBAP/reserve auction files were found in the supplied directory."
+  ],
+  "notes": [
+    "The panel contains national German aggregates, not VPP-metered data.",
+    "Auction clearing prices do not establish that a hypothetical VPP bid would have cleared or that the provider was prequalified.",
+    "The 15-minute panel is not yet a simulation result and does not validate any manuscript profit claim.",
+    "FCR product rows are retained by product; do not sum rows without modeling awarded MW and the applicable product settlement period."
+  ]
+}
