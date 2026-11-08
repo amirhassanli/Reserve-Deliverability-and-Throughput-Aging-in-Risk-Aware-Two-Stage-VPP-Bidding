@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# Large/binary artifacts (keep manuscript + small results; drop huge scenario gz)
+*.gz
+*.zip
+*.xlsx
+*.bin
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+# (*.code-workspace IS committed: VPP_Article6.code-workspace)
+
+# Temp
+*.tmp
+*.log

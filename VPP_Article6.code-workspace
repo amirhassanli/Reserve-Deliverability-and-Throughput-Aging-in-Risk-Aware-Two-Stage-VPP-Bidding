@@ -1,0 +1,18 @@
+{
+  "folders": [
+    { "path": ".", "name": "VPP_Article6_Project" }
+  ],
+  "settings": {
+    "python.defaultInterpreterPath": "python",
+    "files.encoding": "utf8",
+    "editor.wordWrap": "on"
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-python.python",
+      "ms-toolsai.jupyter",
+      "yzhang.markdown-all-in-one",
+      "bierner.markdown-preview-github-styles"
+    ]
+  }
+}
