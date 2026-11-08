@@ -40,3 +40,23 @@ Status after PHASE13/14/15. All numbers below are reproduced from real files or 
 ## 4. Remaining open (honestly stated in the manuscript)
 
 Re-settlement of the 14 OOS days on cleared aFRR/reBAP prices, the Study-A overlap report, numerical τ↑/τ↓ values, and a DM/HAC correction of the daily gain all require the unrecovered Study-A LP package. The manuscript says so explicitly rather than implying reproducibility.
+
+
+## 5. PHASE16 addendum (consistency closure)
+
+A final cross-reference audit found and fixed two residual defects introduced by the Fig. 3 removal:
+the narrative in Section V still introduced Fig. 3 as the *kernel-density* panel (it is now the
+profit-versus-settlement figure), and the Limitations paragraph still referred to "the 58-day KDE
+window of Fig. 3". Both passages now state plainly that the KDE panel was removed from the figure set
+because its day-retention rule cannot be reconstructed from the available artifacts, and the marginal
+shapes are described in text instead.
+
+The same audit replaced the remaining editorial phrasing of the out-of-sample result ("best on all 14
+days", "consistently dominates", "uniformly positive bars", and the two figure captions) with the exact
+statement the evidence supports: all 14 paired differences against B0 are positive, which is what the
+reported exact p = 2/2^14 encodes.
+
+The abstract was cut from 235 to 194 words while keeping every number (549/589/398/-448/-10, 563/day at
+4.8%, p = 1.2e-4, 90/day, 242->276 bus-hours, 4.3/day, 0.937 pu setpoint verified by NR) and the proxy
+caveat. Integrity after the edit: 166 paragraphs, 31 tables, 11 figures, 68 oMath + 50 oMathPara;
+table captions I-XII and figure captions 1-11 both contiguous with no dangling references.

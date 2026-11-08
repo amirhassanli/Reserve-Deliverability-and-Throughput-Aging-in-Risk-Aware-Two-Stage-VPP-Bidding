@@ -4,8 +4,8 @@
 with rolling out-of-sample evaluation and feeder-constrained (IEEE 33-bus) evidence.
 
 - **Author:** Amir Hassanli (single author, no affiliation)
-- **Status:** submission-ready (PHASE15 — Review-5 P0 package, title per reviewer, Fig. 3 removed, 11 figures / 31 tables)
-- **Manuscript:** `manuscript/Hassanli_Abbasi_VPP_Bidding_IEEE_PHASE15_FINAL_SUBMISSION.docx` (2-column IEEE)
+- **Status:** submission-ready (PHASE16 — Review-5 package closed: title per reviewer, Fig. 3 removed, 11 figures / 31 tables / 194-word abstract, no dangling cross-references)
+- **Manuscript:** `manuscript/Hassanli_Abbasi_VPP_Bidding_IEEE_PHASE16_FINAL.docx` (2-column IEEE)
   and `..._SINGLECOLUMN.docx`
 
 ## Repository layout
