@@ -1,0 +1,2 @@
+panel,n_hourly,n_days,da_mean,da_median,da_min,da_max,da_std,rebap_mean,rebap_median,rebap_min,rebap_max,rebap_std,rebap_minus_da_mean,rebap_minus_da_median,corr_da_rebap,share_hours_rebap_gt_da,single_price
+summer 2026 (1 Jun-21 Aug),1968,83,113.65619156504066,125.37125,-45.8675,665.8199999999999,69.56178760702086,121.20368902439024,123.2875,-915.96,2848.2749999999996,125.37493495998402,7.547497459349593,-1.8937500000000038,0.6180488089248021,0.47510162601626016,True
