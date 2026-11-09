@@ -1,0 +1,17 @@
+{
+  "detector": "LinDistFlow residual (not AE)",
+  "sigma_pu": 0.003,
+  "bias_pu": 0.05,
+  "theta_99": 0.012590996179205626,
+  "n_mc": 200,
+  "tp": 100,
+  "fp": 3,
+  "fn": 0,
+  "tn": 97,
+  "precision": 0.970873786407767,
+  "recall": 1.0,
+  "clean_profit": -6108.82046979098,
+  "attack_bid_profit": -6334.9376845170755,
+  "attack_bid_dprofit": -226.11721472609588,
+  "attack_bid_ok": true
+}

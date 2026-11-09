@@ -1,0 +1,6 @@
+{
+  "nr_p1_max_dV": 0.0038,
+  "nr_p1_mean_dV": 0.0017,
+  "epsilon_v_suggested": 0.004,
+  "note": "hard floor v_min+eps on LinDistFlow to cover NR error"
+}
