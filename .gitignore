@@ -28,3 +28,7 @@ desktop.ini
 # Temp
 *.tmp
 *.log
+*.zip
+jules_final_package/figures/
+jules_final_package/paper/figures/
+jules_final_package/data/
